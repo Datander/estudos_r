@@ -1,0 +1,649 @@
+---
+title: "Gabarito - Introduction to Statistical Learning"
+author: "João Eduardo Sola & Davi Santos Santana & Gabriel Gaboardi, 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+## **Capitulo Três - Regressão Linear**
+### *Laboratorio 1 - Libraries*
+
+A funcao library tem o objetivo de importar/baixar grupo de funcoes, biblioteca e banco de dados que nao estao inclusos na base do R.
+Baixaremos as bibliotecas MASS (que possui uma grande variedade de funcoes) e a biblioteca ISLR (que incluem os dados relacionados a 
+este livro).
+
+```{r}
+library(MASS)
+library(ISLR)
+```
+
+### *Laboratorio 2 - Regressão Linear Simples*
+
+Para realizarmos nosso estudo, utilizaremos o banco de dados do pacote MASS chamado Boston. Precisaremos criar um modelo de regressão, 
+onde nossa variavel resposta será o valor mediano de uma casa (medv). Para isso, estarão a nossa disposição 13 variáveis preditoras 
+(ou independetes).
+
+```{r, echo=FALSE}
+db_boston <- Boston
+colnames(db_boston)
+```
+
+Nosso primerio modelo deverá ser construido com informacoes relacionadas ao percentual de lares com baixos estatus socioeconomicos 
+(lstat). Para isso, faremos uso da funcao `lm()`.
+
+```{r}
+fit_boston <- lm(medv~lstat,db_boston)
+```
+
+```{r, echo=FALSE}
+fit_boston
+```
+
+Para conseguirmos um detalhamento mais profundo a respeito do nosso modelo, utilizaremos a funcao `summary()`. Esta funcao nos 
+retornara a descricao o modelo, o sumarios do residuo, a tabela relacionada aos betas e os indicadores que evidenciam a qualidade e 
+acertividade do nosso modelo.
+
+```{r}
+summary(fit_boston)
+```
+
+Podemos perceber que tanto b0 quanto b1 possuem pequenos p-valores, mostrando a rejeicao da hipotese nula de que os betas são zero. 
+Portando, a primeiro momento podemos concluir que lstat é uma variavel significativa. Alem disso, a funcao `summary()` tambem nos 
+mostra que a variancia estimada do residuo é igual a 6.216 Ou seja, o valor mediano de uma casa derivam da verdadeira linha de regressao
+em aproximadamente 6.216 unidades da media. Por fim, uma outra informacao importante obtida pelo `summary()` é o ajusted R-squared. Com
+ela, sabemos que nosso modelo consegue explicar 54% da variabilidade da nossa variavel resposta.
+
+`names()` é outra funcao importante para nosso aprendizado. Atrelando-a com o nosso modelo criado, podemos descobrir outras variedades 
+de comandos possibilitados pelo R.
+
+```{r}
+names(fit_boston)
+```
+
+##### **1.Valores estimados dos coeficientes**
+
+Os coeficientes de um modelo são uma das informações mais importantes para a construção e análise de um problema. Levando em consideração
+a regressão linear que fizemos, podemos perceber pela saida abaixo que possuímos `r fit_boston$coefficients[1]` e 
+`r fit_boston$coefficients[2]` como valores de intercepto e coeficiente angular respectivamente. Com isso, podemos concluir que quanto 
+maior o percentual de lares com baixos estatus socioeconomicos menor será o valor mediano de uma casa. 
+
+```{r}
+fit_boston$coefficients
+```
+
+A funcao `coef()` é outra forma de visualizar os valores dos coeficientes. Alem dela, a funcao `confint()` também se mostra muito util 
+por nos trazer os intervalos de confiancas relacionados aos nossas betas estimados.
+
+```{r}
+confint(fit_boston)
+```
+
+É importante destacar que possuimos a liberdade de controlar o grau de confianca desejado. Ou seja, o defaut do R é a utilização de 95%,
+mas se desejarmos analisar um intervalo com  maior confiança apenas para o coeficiente angular devemos realizar a seguinte linha de 
+codigo.
+
+```{r}
+confint(fit_boston,"lstat",level = 0.99)
+```
+
+
+##### **2.Valores ajustados do modelo**
+
+Também precisamos identificar quais são os valores que estão resultando de nosso modelo. Desse modo, a função `fitted.values` é 
+indispensavel para analise de um modelo. Para o nosso problema, a saida dos seis primeiros valores ajustados são
+
+```{r,echo=FALSE}
+head(fit_boston$fitted.values)
+```
+
+A funcao `predict()` é uma das mais importantes por possibilitar gerar nossos valores estimados, intervalos de confianca e intervalos de
+predições.
+
+```{r}
+head(predict(fit_boston, interval = "confidence"))
+```
+
+Além disso, caso desejemos analisar separadamente alguns valores, a função `predict()` é extremamente útil. Para isso precisamos 
+realizar os seguintes passos.
+
+```{r}
+predict(fit_boston,data.frame(lstat=c(5,10,15))) #Mostra os valores preditos para as linhas selecionadas do banco
+predict(fit_boston,data.frame(lstat=c(5,10,15)),interval = "confidence") #Mostra os IC para os valores acima
+```
+
+
+##### **3.Resíduos do modelo**
+Como não existem modelos perfeitos, é de suma importância analisarmos os resíduos produzidos. Abaixo temos os valores dos seis 
+primeiros resíduos de nosso modelo. 
+
+```{r}
+head(fit_boston$residuals)
+```
+
+##### **4. Diagnóstico do modelo**
+Para nos ajudar a entender melhor os resultados obtidos, faremos uso de ferramentas graficas. Para isso, os comandos `plot()` e 
+`abline()` serão de vital importância.
+
+```{r}
+plot(db_boston$lstat,db_boston$medv,
+     pch=20, 
+     main="Resposta vs Preditora",
+     xlab="Percentual de Lares com Baixos Estatus Socioeconomicos",
+     ylab="Valor Mediano de Uma Casa") #constroi grafico
+abline(fit_boston) #cria linha do modelo
+abline(fit_boston, lwd=3) #engrossa a linha
+abline(fit_boston, col = "red") #colore a linha
+```
+
+O gráfico acima nos mostra a relação entre nossa variavél resposta e preditora, além de tracejar a reta da criada pelo nosso modelo de 
+regressão.
+
+Agora que conseguimos ver como nosso modelo se encaixa nos dados reais, é preciso analisar o comportamento de alguns resultados gerados.
+Para isso, estudaremos a relacao entre valores ajustados e os residuos, a distribuicao dos nossos residuos, a localização de escala e a 
+relação entre os residuos e as alavancagens.
+
+Para nos ajudar nessa analise, faremos uso da função `par(mfrow)` que tem o objetivo de separar graficos em quadrantes. 
+
+```{r}
+par(mfrow=c(2,2))
+plot(fit_boston)
+```
+
+```{r,include=FALSE}
+par(mfrow=c(1,1))
+```
+
+##### **4.1 Valores Ajustados VS Resíduo:**
+
+Bom, para falarmos a respeito da relacao entre valores ajustados e residuos, primeiro precisamos entender qual a importancia dessa 
+analise. 
+
+Para que seja possivel criar um modelo de regressao linear, é preciso que sejam respeitadas algumas suposicoes (linearidade, 
+normalidade multivariada, nenhuma ou pouca multicolinearidade, nenhuma auto correlação e homoscedasticidade). 
+
+```{r,echo=FALSE}
+plot(fit_boston, which=1)
+```
+
+O gráfico nos ajuda a verificar se a relação entre a variavel resposta e as variaveis preditoras sao lineares e se a variancia dos 
+nossos residuos sao constantes (homoscedasticidade). 
+
+Podemos perceber que o gráfico não é igualmente distribuido verticalmente e possui claramente uma forma em sua distribuicao. Portando, 
+conseguimos concluir que nosso modelo possui um bom espaço para ser aperfeiçoado. 
+
+Um bom gráfico de residuo vs valores preditos deveria ser sem formato, sem outliers e genericamente distribuido em torno de 0.
+
+##### **4.2 Distribuição Dos Nossos Residuos:**
+
+Outra suposicao necessária para a criacao do nosso modelo é que nossos erros precisam ter uma distribuicao normal com esperança nula e 
+variancia constante. Como nossos residuos são os estimadores dos erros, precisamos verificar se a distribuição de suas informações se 
+assemelham à uma distribuição normal.
+
+```{r,echo=FALSE}
+plot(fit_boston, which=2)
+```
+
+Através do gráfico, percebemos que nossos residuos não possuem uma distribuicao proxima da normal. Sabemos disso porque os pontos do 
+grafico não estao alinhados ou proximos à linha que determina normalidade em suas esxtremidades. 
+
+Juntando este fato com o destacado no tópico acima, temos ainda mais evidências de que nosso modelo possui espaço para aperfeiçoamento.
+
+##### **4.3 Localização de Escala:**
+
+A finalidade da localização de escala é medir se nossos residuos estao igualmente distribuidos ao longo da distancia dos preditores. 
+Isto é, nosso objetivo é identificar com mais precisão se ocorre homoscedasticidade.
+
+```{r,echo=FALSE}
+plot(fit_boston, which=3)
+```
+
+Podemos perceber que a linha vermelha apresenta uma curvatura durante todo o intervalo do grafico. Isto ocorre porque os residuos não 
+são igualmente distribuidos ao longo de todos os valores de nossa variavel preditora. 
+
+O ideal seria ter uma linha reta que demonstraria a igualdade na distribuicao de nossos residuos ao longo dos valores da variavel 
+preditora.
+
+##### **4.3 Residuos e suas Alavancagens:** 
+
+Por fim, temos como ultimo ponto, a avaliação dos residuos e suas alavancagens.Para isso fazemos uso do método de distancia de Cook, 
+que tem como objetivo verificar se há outliers que possam influenciar significativamente em nosso modelo.
+
+```{r,echo=FALSE}
+par(mfrow=c(1,2))
+plot(fit_boston, which=4)
+plot(fit_boston, which=5)
+```
+
+Através dos graficos, podemos perceber que existem três potenciais valores a serem identificados como outliers. Para conseguirmos ter 
+maior certeza em nossas afirmações, realizaremos um boxplot e olharemos o sumário da nossa variavel preditora.
+
+```{r,include=FALSE}
+par(mfrow=c(1,1))
+```
+
+```{r}
+boxplot(db_boston$lstat)
+summary(db_boston$lstat)
+```
+
+Percebe-se que a propoção entre a distância da maioria dos nossos valores é parecida, exceto para três pontos cujos valores são 
+referentes as observações 215, 375, 413. Por esses motivos, temos fortes indicios a acreditar que essas observções são outliers que 
+influenciam no resultado do nosso modelo. 
+
+Além disso a medição de leverage seria outra forma para validação de nossas suspeitas. Temos que quanto maior os leverages, maior será a
+dependencia de nossos betas a essa variavel. Portanto, leverages altos podem nos ajudar a encontrar ou tirar conclusões a respeito de 
+outliers nas variaveis.
+
+Para encontrar os maiores leverages, faremos uso da função `hat()`
+
+```{r,results='hide'}
+hat <-as.data.frame(hatvalues(fit_boston))
+hat$obs <- row(hat)
+colnames(hat) <- c("leverages","obs")
+hat <- hat[order(-hat$leverages),]
+```
+
+```{r,echo=FALSE}
+head(hat)
+```
+
+Como os comando acima demonstram, nossas suspeitas iniciais se embasam principalmente nas observações 375 e 413. Sabemos disso graças 
+aos resultados obtidos com a distancia de cook e calculo de leverage.
+
+##### **5 Melhorando o modelo:**
+
+Agora que conseguimos identificar alguns dos principais problemas no nosso modelo, podemos tratalos. Para isso, seguiremos os seguintes 
+passos.
+
+##### **5.1 Retirando os outliers:**
+
+Ao retirarmos os outliers encontrados, já percebemos uma melhora em nosso R quadrado ajustado. Esta melhora pode ser ilustrada abaixo, 
+onde nosso R quadrado ajustado salta de 0.5432 para 0.5618
+
+```{r,results='hide'}
+db_boston_m1 <- db_boston[c(-375,-413, -215),]
+fit_b1 <- lm(medv~lstat,db_boston_m1)
+```
+
+```{r}
+summary(fit_b1)
+```
+
+##### **5.2 Linearidade:**
+
+Agora que resolvemos nosso problema relacionado a outliers, podemos tentar manipular a relação de nossos dados para que consigamos 
+maior linearidade. Para isso, faremos uso da função logaritmica.
+
+```{r,results='hide'}
+db_boston_m2 <- db_boston_m1
+db_boston_m2$medv <- log(db_boston_m2$medv)
+db_boston_m2$lstat <- log(db_boston_m2$lstat)
+fit_b2 <- lm(medv~lstat,db_boston_m2) 
+```
+
+```{r}
+summary(fit_b2)
+```
+
+Com isso, percebemos uma evolução ainda mais significante no nosso R quadrado ajustado. 
+
+Para ajudar a evidenciar essa mudança, plotaremos a relação entre os dados com a reta de regressão antes e depois da aplicação 
+logaritmica. 
+
+```{r,echo=FALSE}
+par(mfrow=c(2,1))
+plot(db_boston$lstat,db_boston$medv,
+     pch=20, 
+     main="Resposta vs Preditora - Sem Log",
+     xlab="Perc de Lares com Baixos Estatus Socioec",
+     ylab="Val Mediano de Uma Casa")
+abline(fit_boston)
+abline(fit_boston, lwd=3)
+abline(fit_boston, col = "red")
+
+plot(db_boston_m2$lstat,db_boston_m2$medv,
+     pch=20, 
+     main="Resposta vs Preditora - Com log",
+     xlab="Perc de Lares com Baixos Estatus Socioec",
+     ylab="Val Mediano de Uma Casa")
+abline(fit_b2)
+abline(fit_b2, lwd=3)
+abline(fit_b2, col = "red") 
+
+```
+
+Apesar de obtermos essa melhora significante, ainda precisamos realizar um diagnostico do nosso modelo para validar se as premissas 
+necessárias estão sendo respeitadas. 
+
+Para isso, assim como fizemos anteriormente, analisaremos os graficos abaixo para validar nossas suposições. 
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_b2)
+```
+
+```{r,include=FALSE}
+par(mfrow=c(1,1))
+```
+
+Com isso, podemos concluir que, mesmo com a melhora de acuracia obtida, ainda existem espaços para ajuste do modelo. Por esse motivo, 
+tentaremos focar em convergir a distribuição de nossos dados para uma Normal. 
+
+##### **5.2 Normalização:**
+
+Ajustando nosso dados para uma distribuição normal, consequentemente, conseguiremos residuos normais e proximos dos conceitos ideais de 
+homocedasticidade. Para esse ajuste, realizaremos a transformação de Box Cox.
+
+```{r,include=FALSE}
+fit_b3 <- boxcox(db_boston_m2$medv~db_boston_m2$lstat)
+lambda <- fit_b3$x[which.max(fit_b3$y)]
+
+y_bx <- ((db_boston_m2$medv**lambda)-1)/lambda
+x_bx <- ((db_boston_m2$lstat**lambda)-1)/lambda
+fit_b3<-lm(y_bx~x_bx)
+```
+
+```{r}
+summary(fit_b3)
+```
+
+Depois de todos esses passos, podemos perceber que tivemos uma evolução de 54% para aproximadamente 70% em relação a explicação da 
+variabilidade de nossos dados. Essa melhora pode ser melhor representada comparando os graficos relacionados a nossa variavel resposta e
+preditora
+
+```{r,echo=FALSE}
+par(mfrow=c(3,1))
+plot(db_boston$lstat,db_boston$medv,
+     pch=20, 
+     main="Resposta vs Preditora - Inicial",
+     xlab="Perc de Lares com Baixos Estatus Socioec",
+     ylab="Val Mediano de Uma Casa")
+abline(fit_boston)
+abline(fit_boston, lwd=3)
+abline(fit_boston, col = "red")
+
+plot(db_boston_m2$lstat,db_boston_m2$medv,
+     pch=20, 
+     main="Resposta vs Preditora - Com log",
+     xlab="Perc de Lares com Baixos Estatus Socioec",
+     ylab="Val Mediano de Uma Casa")
+abline(fit_b2)
+abline(fit_b2, lwd=3)
+abline(fit_b2, col = "red") 
+
+y_bx <- ((db_boston_m2$medv**lambda)-1)/lambda
+x_bx <- ((db_boston_m2$lstat**lambda)-1)/lambda
+plot(x_bx,y_bx,
+     pch=20, 
+     main="Resposta vs Preditora - Com box cox transformation",
+     xlab="Perc de Lares com Baixos Estatus Socioec",
+     ylab="Val Mediano de Uma Casa")
+abline(fit_b3)
+abline(fit_b3, lwd=3)
+abline(fit_b3, col = "red") #colore a linha
+
+```
+
+Por fim, ainda nos resta realizar o diagnostico deste modelo final que conseguimos encontrar. 
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_b3)
+```
+
+```{r,include=FALSE}
+par(mfrow=c(1,1))
+```
+
+A partir disto, percebemos que ainda há um problema claro de homocedasticidade a ser tratado. Entretanto, se optarmos por continuar a 
+tratar este modelo básico, teremos como consequencia um aumento na dificuldade de interpretação de suas respostas. 
+
+Portanto, a opção mais razoavél é tentar elaborar um outro modelo para que consigamos respostas melhores e mais confiaveis. Para isso, 
+construiremos um modelo de Regressão Linear Multipla no próximo laboratório. 
+
+### *Laboratorio 3 - Regressão Linear Multipla*
+
+Assim como fizemos no Laboratorio 2, continuaremos fazendo uso da funcao `lm()`. Entretanto, agora utilizaremos todas as variaveis 
+preditoras para compor nosso modelo. Portanto:
+
+```{r}
+fit_boston_m <- lm(medv~.,db_boston)
+summary(fit_boston_m)
+```
+
+Percebemos que só de incluir mais informações no nosso modelo, conseguimos um ganho aproximado de 20% no nosso R quadrado Ajustado 
+(quando comparadado ao modelo inicial do laboratorio 2). Entretanto, algumas das variaveis selecionadas possuem um p-valor muito grande,
+não tornando-a significante. 
+
+Agora que identificamos algumas variaveis não significativas, podemos realizar um novo modelo sem a inclusão destas. Para isso, 
+utlizaremos a funcão `update()`
+
+```{r}
+fit_boston_m1<-update(fit_boston_m,~.-age-indus)
+summary(fit_boston_m1)
+```
+
+Depois de realizarmos essa primeira limpeza de variaveis em nosso modelo, ainda precisamos saber quais variaveis possuem um peso
+realmente significante para compor o que criamos. Para isso, utilizaremos a metodologia stepwise que tem como objetivo a comparação de 
+varios modelos via AIC. 
+
+Para fazermos uso dessa metodologia, precisaremos da funcao `stepAIC`. Além disso, por meios de facilitar o andamento do laboratório, 
+optaremos pela direção "both".
+
+```{r}
+fit_boston_m2<-stepAIC(fit_boston_m1,direction="both")
+```
+
+Com isso, através do método stepwise, podemos perceber que todos as nossas variáveis são de fato significantes e a composição de todas 
+elas resulta no modelo com menor AIC.
+
+A partir disto, realizaremos o diagnostico do modelo criado para analisarmos as suposições necessárias e para encontrarmos possiveis 
+oportunidades de melhoria.
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_boston_m2)
+```
+
+Podemos perceber que os resultados obtidos através de nosso modelo não satisfazem as suposições necessárias para que possamos ter 
+confiança nas respostas obtidas. 
+
+Por esse motivo, analisaremos uma possível transformação nos dados para que consigamos uma relação linear melhor e também uma 
+aproximação para a distribuição normal. 
+
+É importante ressaltar que devemos ter cuidado na etapa deste processo por possuirmos muitas variaveis em nosso modelo. Por exemplo, 
+se aplicarmos uma transformação logarítmica em dados categóricos (geralmente marcados como 0 ou 1), teremos como resposta um valor 
+infinito, o que problematizaria ainda mais nossa modelagem. 
+
+Portanto, faremos alguns gráficos para analisarmos a relação dentre os gráficos. 
+
+```{r, echo=FALSE}
+pairs(~medv+crim+zn+chas+nox+rm+dis+rad+tax+ptratio+black+lstat,data=db_boston) 
+```
+
+Através do gráfico, podemos perceber que existem muitas variáveis com valores zero. Portanto, sabemos que a utilização da transformação 
+logarítmica não é uma opção por enquanto. 
+
+Em vista disso, aplicaremos a transformação Box-Cox, a qual depende de um lambda ótimo para termos um aperfeicoamento de nossas 
+respostas e um melhor enquadramento de nossas suposições.
+
+```{r}
+box_cox_m <- boxcox(fit_boston_m2,plotit = TRUE)
+lambda_m <- box_cox_m$x[which.max(box_cox_m$y)]
+```
+
+
+
+Agora que temos a informação de nosso lambda ótimo ser `r lambda_m`, podemos realizar a transformação necessária. Com isso, conseguimos.
+
+```{r,include=FALSE}
+fit_boston_m3<-update(fit_boston_m2,medv^(lambda_m)~.)
+```
+
+```{r,echo=FALSE}
+summary(fit_boston_m3)
+```
+
+Graças a essa transformação conseguimos uma evolução do nosso R quadrado Ajustado de 0.73 para 0.78. Além disso, nosso RSE diminuiu 
+consideravelmente (de 4.75 para 0.02).
+
+Analisando o diagnostico a respeito do modelo final, percebemos que nossas respostas correspondem melhor as suposicoes necessárias para 
+construção de regressões lineares, o que nos gera ainda mais confiança a respeito da melhora obtida.
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_boston_m3)
+```
+
+Para conseguirmos melhorar ainda mais a acuracia de nosso modelo, um próximo passo poderia ser um estudo a respeito das interações das 
+variáveis. Este tema será abordado no próximo laboratório.
+
+### *Laboratorio 4 - Interação entre variáveis*
+
+É de extrema importancia analisar e identificar se há interações entre as variaveis que compõem nosso modelo. 
+
+Para isso, utilizaremos a função do R que realiza esse procedimento de forma automatica, nos retornando a relação de interação entre as
+variáveis e seus respectivos p-valores. 
+
+```{r}
+fit_boston_i=lm(medv ~ (crim+zn+indus+chas+nox+rm+age
+                        +dis+rad+tax+ptratio+black+lstat)^2,data=db_boston)
+anova(fit_boston_i)
+```
+
+Com isso, podemos perceber quais interação entre as variaveis são significativas e criar um modelo com a composição das mesmas. 
+
+Desta forma, nosso modelo será composto da seguinte maneira. 
+
+```{r,echo=FALSE}
+fit_boston_i_2=lm(medv ~  crim*chas+
+                          crim*nox+
+                          crim*rm+
+                          crim*dis+
+                          crim*rad+
+                          zn*indus+
+                          zn*rm+
+                          zn*dis+
+                          zn*ptratio+
+                          indus*nox+
+                          indus*rm+
+                          indus*ptratio+
+                          indus*lstat+
+                          chas*nox+
+                          nox*ptratio+
+                          nox*black+
+                          rm*rad+
+                          rm*tax+
+                          rm*ptratio+
+                          rm*lstat+
+                          age*black+
+                          age*lstat+
+                          dis*lstat+
+                          rad*lstat+
+                          tax*ptratio,data=db_boston)
+```
+
+
+```{r,echo=FALSE}
+summary(fit_boston_i_2)
+```
+
+Entretanto, afim de evitar suposições e considerações erradas, devemos analisar as interações selecionadas separadamente. Esta etapa de
+modelagem é muito importante para evitar overfit.
+
+Para isso, não existe uma técnica definida para seleção de interações. Como trata-se de um problema relacionado a data knowledge, 
+devemos estudar nossas variaveis e analisar se as interações significantes fazem sentido. 
+
+Desta forma, reduzimos nossos números de interações de 25 para oito. Vale mencionar que um dos primeiros impulsos para seleção de 
+interação é verificar a correlação entre as variaveis. Entretanto, com os resultados abaixo, podemos perceber que a interação não 
+implica necessariamente em correlação.
+
+
+| Variaveis   | Correlacao |
+|-------------|------------|
+| crim:dis    | 0.63       |
+| crim:rad    | -0.38      |
+| zn:rm       | 0.31       |
+| indus:lstat | 0.60       |
+| chas:nox    | 0.09       |
+| rm:tax      | -0.29      |
+| rm:ptratio  | -0.36      |
+| dis:lstat   | -0.50      |
+
+
+Com isso, conseguimos os seguintes resultados.
+
+```{r,echo=FALSE}
+fit_boston_i_3=lm(medv ~  age+black+
+                          crim*dis+
+                          crim*rad+
+                          zn*rm+
+                          indus*lstat+
+                          chas*nox+
+                          rm*tax+
+                          rm*ptratio+
+                          dis*lstat,data=db_boston)
+summary(fit_boston_i_3)
+```
+
+Apesar de termos uma acuracia menor, conseguimos um modelo mais facil de ser interpretado e que respeite os nossos p-valores. 
+Além disso também evitamos um possível problema de overfit.
+
+Agora, analisando o diagnóstico do modelo, podemos perceber um leve problema relacionado a normalidade dos erros e homocedasticidade.
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_boston_i_3)
+```
+
+Aplicando a transformação BoxCox e retirando outliers, chegamos a um modelo com uma melhora consideravel em performance, que chegue 
+próximo de respeitar as suposições necessárias e que não sofra com overfit.
+
+```{r,include=FALSE}
+box_cox_i <- boxcox(fit_boston_i_3,plotit = TRUE)
+lambda_i <- box_cox_i$x[which.max(box_cox_i$y)]
+```
+
+```{r,echo=FALSE}
+fit_boston_i_4=lm(medv^(lambda_i) ~  age+black+
+                          crim*dis+
+                          crim*rad+
+                          zn*rm+
+                          indus*lstat+
+                          chas*nox+
+                          rm*tax+
+                          rm*ptratio+
+                          dis*lstat,data=db_boston[c(-372,-373,-369,-413,-410,-381,-371-370),])
+summary(fit_boston_i_4)
+```
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_boston_i_4)
+```
+
+
+Por fim, aplicando a metodologia stepwise, temos um modelo final com 13 variaveis e cinco interações. Neste passo, pode-se notar que 
+não houve melhora consideravel em nosso R quadrado Ajustado, entretando, conseguimos manter o poder de acuracia obtido anteriormente 
+enquanto simplificamos a composição de nosso modelo. 
+
+```{r,include=FALSE}
+fit_boston_i_5<-stepAIC(fit_boston_i_4,direction="both")
+```
+
+```{r}
+summary(fit_boston_i_5)
+```
+
+```{r,echo=FALSE}
+par(mfrow=c(2,2))
+plot(fit_boston_i_5)
+```
+
+## **Conclusão**
+
+Com os passos apresentados pelos laboratórios, conseguimos ter uma introdução significativa ao mundo de Regressões Lineares.
+
+Entretanto, é importante destacar que esta resolução é complementar ao capítulo. Portanto, a leitura prévia do mesmo é de vital 
+importancia para compreensão e entendimento dos temas abordados. 
