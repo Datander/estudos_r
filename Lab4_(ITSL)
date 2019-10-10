@@ -1,0 +1,392 @@
+---
+title: "Gabarito - Introduction to Statistical Learning"
+author: "João Eduardo Sola & Davi Santos Santana & Gabriel Gaboardi, 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+## **Capitulo Quatro - Classificacao**
+### *Laboratorio 1 - Banco de Dados Stock Market*
+
+Começaremos esse laboratorio analisando os sumarios das variaveis relacionadas ao banco de dados Stock Market. Para isso, baixaremos a biblioteca ISLR que possui o banco desejado.
+
+```{r}
+library(ISLR)
+stock_m <- Smarket
+```
+
+Podemos notar que nosso data frame possui 1250 observações e 9 variaveis. Realizaremos o comando `str()` dessas variaveis para decobrir quais classificações elas possuem. 
+
+```{r}
+str(stock_m)
+```
+
+Agora, podemos notar que nosso banco é consistido de oito variaveis numéricas e uma variavel do tipo fator, que provavelmente será nossa variavel resposta. 
+
+É bom destacar que as variaveis do tipo fator no R (a grosso modo) são classificadas como categoricas.
+
+Agora que sabemos com quais tipos de variaveis estamos lidando, um bom começo é descobrir como elas se comportam ao longo do banco. Para isso, utilizaremos a função `summary()`, que tem como objetivo nos trazer o sumário das variaveis selecionadas.
+
+```{r}
+summary(stock_m)
+```
+
+Através do sumário, notamos que não há grandes variações entre as informações marcadas como Lag e que o intervalo de tempo analisado consiste entre 2001 e 2005. Agora, aplicaremos a funcao `pairs()` para investigar como esses dados comportam-se entre si.
+
+```{r}
+pairs(stock_m)
+```
+
+Através dos graficos, percebemos que a correlação entre nossas variaveis numericas não parece ter um valor alto. Para que confirmemos nossa suspeita, utilizaremos a funcao `cor()` entre nossas **variaveis numericas**
+
+```{r}
+cor(stock_m[,-9])
+```
+
+Com isso, nossas suspeitas já se confirmam. Entretanto, caso estejamos interessados em deixar ainda mais clara a falta de correlação entre as variaveis numericas, podemos fazer uso da funcao `pairs.panels()` da biblioteca psych.
+
+Essa funcao tem como objetivo unir o plot `pairs()` com as informações de correlação, alem de trazer um grafico da distribuição de cada variavel selecionada. 
+
+```{r,include=FALSE}
+library("psych")
+```
+```{r}
+pairs.panels(stock_m[,1:8],
+                  gap=0,
+                  bg=c("black","blue")[stock_m$Direction],
+                  pch=21)
+```
+
+Agora, notamos que nosso maior valor de correlação ocorre entre a variavel volume e year (0.54) e que nossas variaveis possuem uma distruibuicao normal. 
+
+Esta investigação inicial será importante para nós futuramente porque não é de nosso interesse que os modelos criados sejam consistidos de variaveis preditoras com alto indice de correlação entre si. Caso isto aconteca, enfrentaremos um problema de multicoliniaridade. 
+
+
+### *Laboratorio 2 - Regressão logistica*
+
+Começaremos a criar nosso primeiro modelo neste capitulo, para isso montaremos um modelo de regressão logistica através da funcao `glm()`. A funcao `glm()` funciona basicamente como a funcao `lm()` (descrita no capitulo anterior). Nossa variavel de interesse/resposta sera a variavel "Direction" que indica se o mercado teve um dia retorno positivo ou negativo dado um dia especifico.
+
+Entretanto, é necessário que imputemos qual tipo de familia gostariamos que nosso modelo corresponda. Como estamos interessados em montar uma regressão logistica, utilizaremos a familia binomial para modelar. 
+
+Outro ponto importante a ser detacado são a não inclusão das variaveis Year e Today. Decidiremos por não inclui-las porque a variavel Year consiste de uma variavel temporal (que deve ser tratada como uma serie temporal caso decidam realziar algum estudo a seu respeito) e a variavel Today seria uma informação futura que viesaria nosso estudo. 
+
+```{r}
+logistica <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,family = "binomial",stock_m)
+summary(logistica)
+```
+
+Através do sumario de nosso modelo, notamos que todas as variaveis possuem p-valores altos. Portanto não podemos concluir que ela sejam significantes para o que estamos propondo estudar. Ou seja, elas não possuem uma real associação com a nossa variavel Direction. 
+
+Entretanto, como não dispomos de nenhuma outra informação, contuaremos nosso estudo para que possamos compreender melhor o raciocinio por tràs da modelagem com regressão logistica. 
+
+Para podermos avaliar melhor o comportamento do nosso modelo, precisamos analisar as informações geradas por ele. Para isso, fazemos uso da funcao `predict()` que tem como objetivo printar/mostrar as respostas de nosso modelo. 
+
+```{r}
+predito <- predict(logistica,type = "response")
+```
+
+Note que dentro de nossa funcao, nao incluimos nenhum banco de dados. Ao fazer isso, a funcao `predict` entende que deverá gerar os valores solicitados com base na informação do proprio treino.
+
+Agora que deixamos isso claro, as dez primeiras informações geradas.
+
+```{r}
+predito[1:10]
+```
+
+Podemos perceber que as respostas geradas pelo modelo correspondem a valores decimais. Estes valores correm de 0 até 1 e correspondem a probabilidade daquela observação ser classificada conforme nossa referencia. 
+
+Como nossa variavel resposta é constituida por duas categorias ("down" e "up") precisamos decobrir qual referencia está sendo utilizada pelo modelo. Para isso, utilizaremos a funcao `contrasts()`. 
+
+```{r}
+contrasts(stock_m$Direction)
+```
+
+Desta forma, agora temos a clareza que a referencia de nosso modelo corresponde a categoria "up". Entretanto, ainda precisamos definir um ponto de corte para que nossa resposta gerada pelo modelo se transforme em uma variavel categorica (assim como nossa variavel resposta).
+
+```{r}
+pred <- as.data.frame(predito)
+pred$categoria <- ifelse(pred$predito>0.5,"Up","Down")
+```
+ 
+Aqui definimos como ponto de corte a probabilidadae maior que 50%. Entretanto, para casos reais, o ideal é realizar um estudo detalhado e aprofundado a respeito desse ponto para que seu modelo consiga trazer o maior indice de acertibilidade. 
+
+Agora, podemos comparar as respostas geradas por nosso modelo com as respostas reais registradas em nosso banco de dados. Para isso faremos uso de duas funcoes `table()` e `confusionMatrix()`. 
+
+A funcao `table()` tem como objetivo criar uma tabela de frequencias para as variaveis selecionadas. Desta forma, podemos comparar de forma rapida e simples se nosso modelo está gerando informações confiaveis ou nao. 
+
+```{r}
+table(pred$categoria,stock_m$Direction)
+```
+
+A comparação acima nos mostra que nosso modelo acerta bem a categoria "Up" mas erra muito a categoria "Down". Sabemos disso porque as colunas da comparação correspondem aos valores reais do nosso banco de dados, enquanto as linhas correspondem aos valores gerados por nosso modelo. 
+
+Outra forma de verificarmos esse indice de acerto, é utilizando a funcao `confusionMatrix()`. Esta funcao nos retornara a mesma informacao gerada pela funcao `table()`, além de nos mostrar algumas outras informações interessantes. Para isso devemos baixar a biblioteca `caret`.
+
+```{r,include=FALSE}
+library(caret)
+```
+```{r}
+confusionMatrix(as.factor(pred$categoria),stock_m$Direction)
+```
+
+Dentre as informações relevantes levantadas pela funcao `confusionMatrix()` podemos dar destaque para três. 
+
+<ul>
+  <li> O indice de **Acuracia** nos mostra o quanto de acertibilidade estamos obtendo com nosso modelo, ou seja, é a soma de nossa linha diagonal principal dividida pelo número de observação.</li>
+
+  <li> O indice de **Sensitividade** nos mostra o quanto estamos acertando dentre aqueles que chamamos de Down. Ou seja, é o valor da primeira casela dividido pela soma da primeira coluna.</li>
+
+  <li> O indice de **Especificidade** nos mostra o quanto estamos acertando dentre aqueles que chamamos de Up Ou seja, é o valor da quarta casela dividido pela soma da segunda coluna.</li>
+</ul>
+
+Com isso poderiamos concluir que nosso modelo possui um indice de acerto de 52%. Entretanto, tal conclusão seria feita de forma incorreta. Podemos afirmar isto porque o valor obtido de acuracia corresponde aos dados de nosso modelo atralado a nossa base como um todo. 
+
+Para termos uma ideia real dos resultados, precisamos dividir nosso data set em treino e teste. Onde nossa base de treino corresponderá as observaçõe atreladas aos anos de 2001 a 2004, enquanto nosso teste correspondera as observações atraladas ao ano de 2005. 
+
+Conseguiremos realizar essa quebra de base atraves da funcao `subset()`, que tem como objetivo criar subconjuntos através de uma determinada regra.
+
+```{r}
+train <- subset(stock_m,stock_m$Year<2005)
+test <- subset(stock_m,stock_m$Year>=2005)
+```
+
+Agora que realizamos a divisao de nossa base, podemos montar um novo modelo atrelado a nossa base de treino e testa-lo em nossa base denominada como test. 
+
+```{r}
+logistica_train <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,family = "binomial",train)
+pred_test <- as.data.frame(predict(logistica_train,test,type = "response"))
+colnames(pred_test) <- "predito"
+pred_test$categoria <- ifelse(pred_test$predito>0.5,"Up","Down")
+```
+
+Depois destes passos, agora podemos verificar o real indice de acerto de nosso modelo dentre a nossa base teste.
+
+```{r}
+confusionMatrix(as.factor(pred_test$categoria),test$Direction)
+```
+
+Notamos que com a separação de nossa base entre teste e treino, nosso indice de acuracia cai para cerca de 48%. Ou seja, o resultado obtido anteiormente (considerando a base como um todo) era viesado. 
+
+Entretanto, como nosso modelo corresponde a um indice de acerto pior do que uma decisão aleatoria, tentaremos melhora-lo. Para isso, utilizaremos apenas as variaveis com os menores p-valores encontrados inicialmente, montaremos outro modelos e analisaremos se há uma melhora em relação ao teste.
+
+```{r}
+logistica_train2 <- glm(Direction~Lag1+Lag2,family = "binomial",train)
+pred_test2 <- as.data.frame(predict(logistica_train2,test,type = "response"))
+colnames(pred_test2) <- "predito"
+pred_test2$categoria <- ifelse(pred_test2$predito>0.5,"Up","Down")
+confusionMatrix(as.factor(pred_test2$categoria),test$Direction)
+```
+
+Notamos que de fato a acuracia de nosso modelo volta a melhorar (de 48% para 56%). Além disso, dentre nosso interesse (categoria "up"), possuimos um indice de 58% de acerto. 
+
+Apesar da melhora, sabemos que uma acuracia de 56% não é considerada satisfatoria. Uma justificativa plausivel de termos conseguido tao pouca acertibilidade foram os p-valores de nossas variaveis. Ou seja, não é possivel criar um modelo robusto sem que tenhamos variaveis com boas associações com a resposta desejada. 
+
+
+### *Laboratorio 3 - Analise Discriminante Linear (LDA)*
+
+#### Introdução
+
+Para começarmos a falar a respeito de LDA, precisamos ter em mente que essa metodologia é uma extensão do classificador de Bayes. 
+
+$$P(Y = y \mid X = x) = \frac{P(X = x \mid Y = y) * P(Y=y)}{P(X=x)} = \frac{P(X = x \mid Y = y) * P(Y=y)}{\sum_{i=1}^{n}P(X = x \mid Y = y_i)*P(Y=y_i)}$$
+
+Onde $P(Y = y \mid X = x)$ é denominada como Posteriori, $P(X = x \mid Y = y)$ é denominada como Classe Condicional, $P(Y=y)$ é denominada como Priori e $P(X=x)$ é denominada como Marginal. 
+
+A ideia principal da técnica de Analise Discriminante Linear é conseguir desenhar linhas que dividam nosso dados, possibilitando a tomada de decisão à  respeito de suas classificações. Para isso, fazemos uso de uma metodologia chamada Decision Boundary:
+
+$$D = [X : P(Y=y_1 \mid X=x) = P(Y=y_2 \mid X=x)=...=P(Y=y_k \mid X=x)]$$ 
+Além dela, também definimos duas assunções importantes:
+
+<ul>
+  <li> Assumiremos que nossa Classe Condicional possui uma distribuição Normal Gaussiana Multivariada.</li>
+
+  <li> Assumiremos que as Matrizes de variancia-covariância são iguais. Ou seja, $S=S_1=S_2=...=S_k$</li>
+</ul>
+
+Com isso, podemos chegar na seguinte relação linear;
+
+$$x^t\beta + a = 0$$
+Onde :
+$$\beta= S^{-1}\mu_k-S^{-1}\mu_{k-1}-...-S^{-1}\mu_1$$ 
+$$a=\frac{1}{2}[(\mu_1^tS^{-1}\mu_1-\mu_2^tS^{-1}\mu_2-...\mu_k^tS^{-1}\mu_k)-\sum_{i=1}^{k}log({P(Y=y_i)})]$$
+
+
+#### Problema com Smarket Data
+
+Agora que deixamos claro alguns critérios importantes a respeito da LDA, vamos voltar a abordar os problemas relacionados aos dados do Smarket. 
+
+```{r,include=FALSE}
+library('MASS')
+```
+```{r}
+lda_train <- lda(Direction~Lag1+Lag2,data=train)
+lda_train
+```
+
+A saída do modelo criado descreve a composição do modelo, as Prioris estimadas de cada classe, as medias das classes em comparação as preditoras selecionadas e os coeficientes das discriminantes lineares. Além disso, também podemos plotar os resultados obtidos pelo modelo para cada classe.
+
+```{r}
+plot(lda_train,col="white")
+```
+
+Podemos perceber que existe uma grande quantidade de overlap entre os dois graficos. Com isso, podemos concluir que o modelo realizado não consegue dividir bem os dados entre as variaveis respostas desejadas.
+
+A função `partimat()` nos ajuda a confirmar o que foi dito acima. Essa função cria graficos das preditoras selecionadas, além de tracejar a linha de separação criada pelo LDA e categorizar cada ponto dos graficos entre as classes das variaveis respostas.
+
+```{r}
+library(klaR)
+partimat(Direction~Lag1+Lag2,data=train, method="lda")
+```
+
+Apesar de já percebermos que este modelo não tem poder suficiente para separa os dados com as preditoras disponibilizadas, continuaremos nossos estudos afim de entender os próximos passos Portanto, verificaremos quais respostas nosso modelo consegue gerar em nossa base de teste. 
+
+```{r}
+pred_lda <- predict(lda_train,test)
+names(pred_lda)
+```
+
+Ao chamarmos os nomes armazenados na funcao de predição que acabamos de criar, percebemos que existem três categorias
+
+<ul>
+  <li> class: Mostra a predição a respeito das classes de nossa variavel resposta em cada ponto de nossa base de teste.</li>
+
+  <li> posterior: Saída de probabilidade realcionada a cada classe de nossa variavel resposta (Posteriori).</li>
+
+  <li> x: Score calculado através dos coeficientes das discriminantes lineares.</li>
+</ul>
+
+Além disso, sabemos que o defaut do R para criar a marcação das classes é a utilização de um treshold de 0.5. Ou seja, a observação será marcada de acordo com a posteriori pertencente ao grupo com probabilidade caculada acima de 0.5.
+
+```{r}
+pred_lda$class[1:15]
+round(pred_lda$posterior[1:15],2)
+```
+
+Desta forma, geramos a matriz de confusão e percebemos que obtivemos os mesmos resultados da regressão logistica.
+
+```{r}
+confusionMatrix(pred_lda$class,test$Direction)
+```
+
+### *Laboratorio 4 - Analise Discriminante Quadratica (QDA)*
+
+A principal diferença entre LDA e QDA é a não assunção de que as matrizes de variancia-covariancia das classes de nossa variavel resposta são iguais. 
+
+Sabendo desta diferença, analisaremos se conseguiremos melhores resultados na predição de nossas categorias. Para isso, faremos uso da função `qda()`.
+
+```{r}
+qda_train <- qda(Direction~Lag1+Lag2,data=train)
+qda_train
+```
+
+Podemos notar que agora não possuímos mais os valores dos coeficientes na saida do modelo. Isto ocorre porque agora os coeficientes são calculados de formas separadas para cada classe de nossa variavel resposta. Portanto, para acessa-los, precisamos realizar o seguinte passo:
+
+```{r}
+qda_train$scaling
+```
+
+Para visualizarmos o comportamento de nosso modelo, continuaremos fazendo uso da funcao `partimat()`. Através dela, notamos que a relação linear que era criada ao usar o LDA é substituida por uma relação quadratica. 
+
+```{r}
+partimat(Direction~Lag1+Lag2,data=train, method="qda")
+```
+
+Além disso, essa nova relação parece capturar melhor a classificação de nossas variaveis respostas. Para termos essa confirmação, aplicaremos o modelo construido nos dados de teste para verificarmos a acuracia obtida.
+
+```{r}
+pred_qda <- predict(qda_train,test)
+confusionMatrix(pred_qda$class,test$Direction)
+```
+
+Com isso, notamos que há uma melhora significativa de 5% (de 55% para 60%) em nossa acuracia apenas por selecionarmos outra abordagem de modelagem.
+
+### *Laboratorio 5 - K Nearest Neighbors (KNN)*
+
+Por fim, a ultima metodologia que abordaremos nesse laboratório será a KNN. De forma geral, para fazer uma previsão para uma observação X = x, são identificadas as observações de treinamento K mais próximas de x. Então X é atribuído à classe à qual pertence a pluralidade dessas observações.
+
+Portanto, o KNN é uma abordagem completamente não paramétrica: nenhuma suposição é feita sobre a forma do Decision Boundary.
+
+Agora que já possuimos essa noção básica a respeito da diferença entre KNN e LDA/QDA, analisaremos como nossos dados se comportam através dessa nova tecnica de modelagem.
+
+Para isso, usaremos a função `knn()` da biblioteca `class`. Entretanto, é importante destacar que esse comando funciona diferente dos comandos apresentados anteriormentes. Isto acontece porque não existe o step de ajuste de modelo quando falamos de knn.
+
+Ou seja, para que possamos realizar um knn, precisamos de quatro inputs para o nosso comando:
+
+<ul>
+  <li> Uma matriz contendo os preditores associados ao nosso dado de treino.</li>
+
+  <li> Uma matriz contendo os preditores associados ao nosso dado de teste.</li>
+
+  <li> Um vetor conteno as respostas associadas ao nosso dado de treino.</li>
+
+  <li> Um valor para K (número de vizinhos que serão usados).</li>
+</ul>
+
+```{r}
+M_train <- train[,c(2,3)]
+M_test <- test[,c(2,3)]
+M_train_resp <- train[,9]
+```
+
+Agora que preparamos nossa base, podemos começar a montar nosso modelo. O grande e principal desafio do KNN é selecionar de forma correta o número de vizinhos para determinar a classificação das observações. Inicialmente começaremos com apenas um vizinho para tomada de decisão.
+
+```{r}
+library(class)
+set.seed(1)
+pred_knn=knn(M_train,M_test,M_train_resp,k=1)
+confusionMatrix(pred_knn,test$Direction)
+```
+
+Notamos que os resultados obtidos não foram tão significantes. Entretanto, ainda possuimos um modelos que performe melhor do que uma seleção aleatória. Agora, tentaremos aumentar o número de vizinhos para analisar se iremos obter respsotas melhores.
+
+```{r}
+library(class)
+set.seed(1)
+pred_knn=knn(M_train,M_test,M_train_resp,k=3)
+confusionMatrix(pred_knn,test$Direction)
+```
+
+Percebemos que ao aumentarmos o numero de vizinhos selecionados para tomada de decisão em relação a classificação de cada observação, geramos um aumento na nossa acuracia (mesmo que não expressivo).
+Tendo isso em mente, verificaremos como o modelo se comporta ao selecionarmos cinco vizinhos. 
+
+```{r}
+library(class)
+set.seed(1)
+pred_knn=knn(M_train,M_test,M_train_resp,k=5)
+confusionMatrix(pred_knn,test$Direction)
+```
+
+Aqui fica claro que não basta apenas aumentarmos infinitamente o indice K para conseguirmos uma boa acurácia. Desta forma, é preciso que seja gerada uma estimação do valor ideal para K. 
+
+Verificaremos como realizar esse procedimento no próximo Laboratório.
+
+
+## *Comparações*
+
+Neste artigo, verificamos os mecanismos necessários para criação de quatro modelos: Regressão Logística, LDA, QDA e KNN. Entretanto, também é importante definir quais as principais diferenças entre eles e, em geral, quando optamos por cada tipo de modelo. 
+
+
+<ul>
+  <li> Regressão Logística vs LDA:.</li>
+</ul>
+
+Tanto a Regressão Logistica quanto o LDA criam uma relação linear entre as variaveis preditoras e nossas respostas. Entretanto, a principal diferença entre as dua técnicas é que a Regressão Logistica faz uso da técnica de Máxima Verossimilhança para estimar seus coeficientes enquanto o LDA realiza este procedimento através da estimação das médias e variâncias de uma distribuição normal. Como as duas técnicas geram uma relação parecida entre as preditoras e a resposta, é de se esperar que o resultado gerado por ambas seja (em geral) parecido. 
+
+Entretanto, quando nossa suposição de variancias iguais é correspondida, o LDA consegue performar melhor que a Regressão Logística. Em contra partida, quando a suposição de distrubição normal não é correspondida, a Regressão Logística gera uma performance melhor. 
+
+<ul>
+  <li> KNN vs LDA & Regressão Logística:.</li>
+</ul>
+
+Como KNN é uma técnica completamente não paramétrica (não são feitas nenhumas assunções a respeito da forma do decision boundary) podemos esperar que haja uma domínio sobre a Regressão Logística e o LDA quando o decision boundary for altamente não linear. Entretanto, a grande desvantagem do KNN é não nos dizer quais preditores possuem maior relevancia para nosso modelo (não temos uma tabela de coeficientes como nos modelos de regressão logística e KNN).
+
+<ul>
+  <li> QDA vs KNN:.</li>
+</ul>
+
+Finalmente, o QDA serve como um recurso entre o KNN não paramétrico e as abordagens lineares de Regressão Logística e LDA. Isto ocorre porque o QDA assume um decision boundary quadrático, conseguindo modelar com maior precisão uma maior variedade de problemas que os métodos lineares. 
+
+## *Conclusão*
+
+Com isso, podemod concluir que nenhum método dominará os outros em todas as situações. Quando os verdadeiros limites de decisão são lineares, então as abordagens de regressão logística e LDA tenderão a ter um bom desempenho. Quando Como os limites são moderadamente não lineares, o QDA pode fornecer melhores resultados. Finalmente, para limites de decisão muito mais complicados, uma abordagem não paramétrica como KNN pode ser superior. 
